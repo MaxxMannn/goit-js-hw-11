@@ -1,132 +1,55 @@
-import SimpleLightbox from 'simplelightbox';
-import 'simplelightbox/dist/simple-lightbox.min.css';
-import { getGallery, totalPages } from './js/api-set';
-import { scroll } from './js/scroll';
-import { createGalleryItem } from './js/createMarkup';
+const startPhotos = document.querySelector('button[type="submit"]')
+const morePhotosButton = document.querySelector('button[type="button"]')
+const currentValue = document.querySelector('input');
+const container = document.querySelector('.gallery');
+
+morePhotosButton.classList.add('is-hidden')
+
+startPhotos.addEventListener('click',makerGalery )
+morePhotosButton.addEventListener('click',makeMorePhotos) 
+container.addEventListener('click',stopDefAction)
+
+import {JSONPlaceholderAPI} from './url.js'
+import galaryCreator from './galary.hbs'
 import Notiflix from 'notiflix';
 
-const form = document.querySelector('#search-form');
-const gallery = document.querySelector('.gallery');
-// const btnLoad = document.querySelector('.load-more');
-const guard = document.querySelector('.guard');
-let query = '';
-let page = 1;
-const lightbox = new SimpleLightbox('.gallery a');
-const options = {
-  root: null,
-  rootMargin: '100px',
-  threshold: 0,
-};
+const urlAPI = new JSONPlaceholderAPI()
 
-const observer = new IntersectionObserver(onPagination, options);
-
-form.addEventListener('change', onInput);
-form.addEventListener('submit', onSubmit);
-// btnLoad.addEventListener('click', onClick);
-
-async function addGallerySubmit() {
-  try {
-    const response = await getGallery(query, page);
-    addImages(response);
-    if (page !== totalPages) {
-      observer.observe(guard);
+async function makeMorePhotos(e) {
+    try{
+    if(currentValue.value === ''){
+        return Notiflix.Notify.failure('Будь ласка введіть слово для пошуку');
     }
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-// async function addGalleryClick() {
-//   try {
-//     const response = await getGallery(query, page);
-//     const images = response.data.hits;
-//     createGalleryItem(images);
-//     scroll();
-//     lightbox.refresh();
-//     if (page !== totalPages) {
-//       observer.observe(guard);
-//     }
-//   } catch (error) {
-//     console.error(error);
-//   }
-// }
-
-async function addGalleryPag() {
-  try {
-    scroll();
-    const response = await getGallery(query, page);
-    const images = response.data.hits;
-    createGalleryItem(images);
-    lightbox.refresh();
-
-    if (page > totalPages) {
-      //     evt.target.classList.add('btn-hidden');
-      Notiflix.Notify.warning(
-        "We're sorry, but you've reached the end of search results."
-      );
+    await urlAPI.fetchPhotos(currentValue.value).then(data =>{
+    if(data.hits.length === 0){
+       morePhotosButton.classList.add('is-hidden')
+      return Notiflix.Notify.failure('Будь ласка введіть правильне слово для пошуку')
     }
-  } catch (error) {
-    console.error(error);
-  }
+    morePhotosButton.classList.remove('is-hidden')
+    console.log(data.hits)
+    container.insertAdjacentHTML('beforeend',galaryCreator(data.hits))
+})
+}
+  catch(error)  {
+     console.log(error)
 }
 
-function onInput(evt) {
-  query = evt.target.value.trim();
-  return query;
+}
+function makerGalery(e){
+    e.preventDefault()
+    container.innerHTML = ' '
+    makeMorePhotos()
 }
 
-function onSubmit(evt) {
-  evt.preventDefault();
-  page = 1;
-  gallery.innerHTML = '';
-  //   btnLoad.classList.add('btn-hidden');
-
-  if (!evt.target.elements.searchQuery.value) {
-    Notiflix.Notify.failure('Please, enter a search query');
-  } else {
-    addGallerySubmit();
-  }
+function stopDefAction(evt) {
+    evt.preventDefault();
+    if (evt.target.nodeName !== "IMG") {
+        return console.log('missClick')
+    };
+    var lightbox = new SimpleLightbox('.gallery .photo-card img', 
+    {captions: true, 
+     captionDelay: 250 , 
+     captionsData : 'alt', 
+    });
 }
 
-function addImages(response) {
-  const images = response.data.hits;
-
-  if (!images.length) {
-    gallery.innerHTML = '';
-    Notiflix.Notify.failure(
-      'Sorry, there are no images matching your search query. Please try again.'
-    );
-  } else {
-    createGalleryItem(images);
-    Notiflix.Notify.success(
-      `Hooray! We found ${response.data.totalHits} images.`
-    );
-    lightbox.refresh();
-  }
-}
-
-// function onClick(evt) {
-//   page += 1;
-//   addGalleryClick();
-//   if (page > totalPages) {
-//     evt.target.classList.add('btn-hidden');
-//     Notiflix.Notify.warning(
-//       "We're sorry, but you've reached the end of search results."
-//     );
-//   }
-// }
-
-function onPagination(entries, observer) {
-  entries.forEach(entry => {
-    console.log(entry);
-    if (entry.isIntersecting) {
-      page += 1;
-      addGalleryPag();
-      if (page === totalPages) {
-        observer.unobserve(guard);
-      }
-    }
-  });
-}
-
-export { gallery };
